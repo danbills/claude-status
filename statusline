@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Wrapper script with debugging
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="/tmp/statusline-debug"
+mkdir -p "$LOG_DIR"
+
+TIMESTAMP=$(date +%Y%m%d-%H%M%S-%N)
+LOG_FILE="$LOG_DIR/run-${TIMESTAMP}.log"
+STDIN_FILE="$LOG_DIR/stdin-${TIMESTAMP}.json"
+OUTPUT_FILE="$LOG_DIR/output-${TIMESTAMP}.txt"
+ERROR_FILE="$LOG_DIR/error-${TIMESTAMP}.txt"
+
+# Log invocation
+echo "=== Statusline Debug Log ===" > "$LOG_FILE"
+echo "Timestamp: $(date)" >> "$LOG_FILE"
+echo "Args: $@" >> "$LOG_FILE"
+echo "PWD: $PWD" >> "$LOG_FILE"
+echo "---" >> "$LOG_FILE"
+
+# Read stdin and save it
+cat > "$STDIN_FILE"
+
+# Log stdin size
+echo "Stdin size: $(wc -c < "$STDIN_FILE") bytes" >> "$LOG_FILE"
+echo "Stdin preview:" >> "$LOG_FILE"
+head -c 200 "$STDIN_FILE" >> "$LOG_FILE"
+echo "" >> "$LOG_FILE"
+echo "---" >> "$LOG_FILE"
+
+# Run the actual command
+cat "$STDIN_FILE" | "$SCRIPT_DIR/target/graalvm-native-image/claude-statusline-maker" "$@" > "$OUTPUT_FILE" 2> "$ERROR_FILE"
+#cat "$STDIN_FILE" | "$SCRIPT_DIR/target/universal/stage/bin/claude-statusline-maker" "$@" > "$OUTPUT_FILE" 2> "$ERROR_FILE"
+EXIT_CODE=$?
+
+# Log results
+echo "Exit code: $EXIT_CODE" >> "$LOG_FILE"
+echo "Output size: $(wc -c < "$OUTPUT_FILE") bytes" >> "$LOG_FILE"
+echo "Error size: $(wc -c < "$ERROR_FILE") bytes" >> "$LOG_FILE"
+
+# Output the result
+cat "$OUTPUT_FILE"
+
+# Log if there were errors
+if [ -s "$ERROR_FILE" ]; then
+    echo "Stderr:" >> "$LOG_FILE"
+    cat "$ERROR_FILE" >> "$LOG_FILE"
+fi
+
+# Keep only last 10 debug files
+cd "$LOG_DIR" && ls -t run-*.log | tail -n +11 | xargs -r rm
+cd "$LOG_DIR" && ls -t stdin-*.json | tail -n +11 | xargs -r rm
+cd "$LOG_DIR" && ls -t output-*.txt | tail -n +11 | xargs -r rm
+cd "$LOG_DIR" && ls -t error-*.txt | tail -n +11 | xargs -r rm
+
+exit $EXIT_CODE

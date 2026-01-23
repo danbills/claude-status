@@ -1,0 +1,38 @@
+{
+  "hook_event_name": "Status",
+  "session_id": "abc123",
+  "transcript_path": "/path/to/transcript.json",
+  "cwd": "/current/working/directory",
+  "model": {
+    "id": "claude-sonnet-4-1",
+    "display_name": "Sonnet"
+  },
+  "workspace": {
+    "current_dir": "/current/working/directory",
+    "project_dir": "/home/dan/projects/my-app"
+  },
+  "version": "1.0.80",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 0.5678,
+    "total_duration_ms": 450000,
+    "total_api_duration_ms": 23000,
+    "total_lines_added": 1256,
+    "total_lines_removed": 234
+  },
+  "context_window": {
+    "total_input_tokens": 175234,
+    "total_output_tokens": 45210,
+    "context_window_size": 200000,
+    "used_percentage": 87.3,
+    "remaining_percentage": 12.7,
+    "current_usage": {
+      "input_tokens": 85000,
+      "output_tokens": 12000,
+      "cache_creation_input_tokens": 50000,
+      "cache_read_input_tokens": 20000
+    }
+  }
+}

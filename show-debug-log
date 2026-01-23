@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Helper script to view the latest debug logs
+
+LOG_DIR="/tmp/statusline-debug"
+
+echo "=== Latest Run Log ==="
+ls -t "$LOG_DIR"/run-*.log 2>/dev/null | head -1 | xargs cat
+echo ""
+
+echo "=== Latest Stdin (first 500 chars) ==="
+ls -t "$LOG_DIR"/stdin-*.json 2>/dev/null | head -1 | xargs head -c 500
+echo ""
+echo ""
+
+echo "=== Latest Output ==="
+ls -t "$LOG_DIR"/output-*.txt 2>/dev/null | head -1 | xargs cat
+echo ""
+
+echo "=== Latest Error (if any) ==="
+ls -t "$LOG_DIR"/error-*.txt 2>/dev/null | head -1 | xargs cat
+echo ""
+
+echo "=== All Recent Runs ==="
+ls -lt "$LOG_DIR"/run-*.log 2>/dev/null | head -5
