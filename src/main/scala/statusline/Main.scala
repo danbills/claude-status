@@ -6,9 +6,11 @@ object Main {
   def main(args: Array[String]): Unit = {
     val format = args.headOption.getOrElse("bar")
     val formatter = format match {
-      case "compact" => CompactFormatter
-      case "emoji"   => EmojiFormatter
-      case _         => BarFormatter
+      case "compact"    => CompactFormatter
+      case "emoji"      => EmojiFormatter
+      case "git"        => GitBarFormatter
+      case "gitcompact" => GitCompactFormatter
+      case _            => BarFormatter
     }
 
     val json = scala.io.Source.stdin.getLines().mkString

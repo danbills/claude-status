@@ -43,6 +43,23 @@ trait StatusLineFormatter {
 
   def contextPercent(pct: Double): String =
     Colors.colored(s"${pct.toInt}%", contextColor(pct))
+
+  def branchName(name: String): String =
+    Colors.colored(name, Colors.Cyan)
+
+  def dirtyMarker(isDirty: Boolean): String =
+    if isDirty then Colors.colored("*", Colors.Red, Colors.Bold) else ""
+
+  def aheadBehind(ahead: Int, behind: Int): String = {
+    val parts = List(
+      if ahead > 0 then Some(Colors.colored(s"↑$ahead", Colors.Green)) else None,
+      if behind > 0 then Some(Colors.colored(s"↓$behind", Colors.Red)) else None
+    ).flatten
+    if parts.isEmpty then "" else parts.mkString("")
+  }
+
+  def gitLines(added: Int, deleted: Int): String =
+    Colors.colored(s"+$added", Colors.Green) + "/" + Colors.colored(s"-$deleted", Colors.Red)
 }
 
 object BarFormatter extends StatusLineFormatter {
@@ -82,5 +99,43 @@ object EmojiFormatter extends StatusLineFormatter {
     val dir = directory(e.workspace.project_dir)
 
     s"🤖 $model [$percent] $costStr $lines $dir $prompt"
+  }
+}
+
+object GitBarFormatter extends StatusLineFormatter {
+  def format(e: StatusEvent): String = {
+    val model = modelName(e.model.display_name)
+    val pct = calculateContextPercent(e.context_window)
+    val bar = contextBar(pct)
+    val percent = contextPercent(pct)
+    val costStr = cost(e.cost.total_cost_usd)
+
+    val gitPart = GitHelper.getGitInfo(e.workspace.project_dir) match {
+      case Some(git) =>
+        val branch = branchName(git.branch) + dirtyMarker(git.isDirty)
+        val ab = aheadBehind(git.ahead, git.behind)
+        val lines = gitLines(git.linesAdded, git.linesDeleted)
+        s" | $branch$ab | $lines"
+      case None => ""
+    }
+
+    s"[$model] $bar $percent | $costStr$gitPart $prompt"
+  }
+}
+
+object GitCompactFormatter extends StatusLineFormatter {
+  def format(e: StatusEvent): String = {
+    val model = modelName(e.model.display_name)
+    val pct = calculateContextPercent(e.context_window)
+    val percent = contextPercent(pct)
+
+    val gitPart = GitHelper.getGitInfo(e.workspace.project_dir) match {
+      case Some(git) =>
+        val branch = branchName(git.branch) + dirtyMarker(git.isDirty)
+        s" $branch"
+      case None => ""
+    }
+
+    s"$model@$percent$gitPart $prompt"
   }
 }
