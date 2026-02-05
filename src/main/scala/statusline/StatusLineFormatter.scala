@@ -1,24 +1,26 @@
 package statusline
 
-trait StatusLineFormatter {
-  def format(e: StatusEvent): String
+import fansi.{Attr, Str}
 
-  // Shared helpers
+trait StatusLineFormatter {
+  def format(e: StatusEvent): FormattedOutput
+
+  // Shared helpers - return fansi.Str for composition
   def calculateContextPercent(window: ContextWindow): Double = {
     val total = window.total_input_tokens + window.total_output_tokens
     if window.context_window_size == 0 then 0.0
     else (total.toDouble / window.context_window_size.toDouble) * 100
   }
 
-  def contextColor(pct: Double): String =
+  def contextColorAttr(pct: Double): Attr =
     if pct < 50 then Colors.Green
     else if pct < 80 then Colors.Yellow
     else Colors.Red
 
-  def contextBar(pct: Double): String = {
+  def contextBar(pct: Double): Str = {
     val filled = (pct / 10).toInt.min(10).max(0)
-    val color = contextColor(pct)
-    Colors.colored("█" * filled, color) + Colors.colored("░" * (10 - filled), Colors.Dim)
+    val color = contextColorAttr(pct)
+    Colors.styled("█" * filled, color) ++ Colors.styled("░" * (10 - filled), Colors.Dim)
   }
 
   def abbreviateHome(path: String): String = {
@@ -26,44 +28,44 @@ trait StatusLineFormatter {
     if path.startsWith(home) then "~" + path.drop(home.length) else path
   }
 
-  def linesChanged(added: Int, removed: Int): String =
-    Colors.colored(s"+$added", Colors.Green) + "/" + Colors.colored(s"-$removed", Colors.Red)
+  def linesChanged(added: Int, removed: Int): Str =
+    Colors.styled(s"+$added", Colors.Green) ++ Str("/") ++ Colors.styled(s"-$removed", Colors.Red)
 
-  def modelName(name: String): String =
-    Colors.colored(name, Colors.Cyan, Colors.Bold)
+  def modelName(name: String): Str =
+    Colors.styled(name, Colors.Cyan, Colors.Bold)
 
-  def cost(usd: Double): String =
-    Colors.colored(f"$$$usd%.4f", Colors.Yellow)
+  def cost(usd: Double): Str =
+    Colors.styled(f"$$$usd%.4f", Colors.Yellow)
 
-  def directory(path: String): String =
-    Colors.colored(abbreviateHome(path), Colors.Blue, Colors.Dim)
+  def directory(path: String): Str =
+    Colors.styled(abbreviateHome(path), Colors.Blue, Colors.Dim)
 
-  def prompt: String =
-    Colors.colored(">", Colors.White, Colors.Bold)
+  def prompt: Str =
+    Colors.styled(">", Colors.White, Colors.Bold)
 
-  def contextPercent(pct: Double): String =
-    Colors.colored(s"${pct.toInt}%", contextColor(pct))
+  def contextPercent(pct: Double): Str =
+    Colors.styled(s"${pct.toInt}%", contextColorAttr(pct))
 
-  def branchName(name: String): String =
-    Colors.colored(name, Colors.Cyan)
+  def branchName(name: String): Str =
+    Colors.styled(name, Colors.Cyan)
 
-  def dirtyMarker(isDirty: Boolean): String =
-    if isDirty then Colors.colored("*", Colors.Red, Colors.Bold) else ""
+  def dirtyMarker(isDirty: Boolean): Str =
+    if isDirty then Colors.styled("*", Colors.Red, Colors.Bold) else Str("")
 
-  def aheadBehind(ahead: Int, behind: Int): String = {
+  def aheadBehind(ahead: Int, behind: Int): Str = {
     val parts = List(
-      if ahead > 0 then Some(Colors.colored(s"↑$ahead", Colors.Green)) else None,
-      if behind > 0 then Some(Colors.colored(s"↓$behind", Colors.Red)) else None
+      if ahead > 0 then Some(Colors.styled(s"↑$ahead", Colors.Green)) else None,
+      if behind > 0 then Some(Colors.styled(s"↓$behind", Colors.Red)) else None
     ).flatten
-    if parts.isEmpty then "" else parts.mkString("")
+    if parts.isEmpty then Str("") else parts.reduce(_ ++ _)
   }
 
-  def gitLines(added: Int, deleted: Int): String =
-    Colors.colored(s"+$added", Colors.Green) + "/" + Colors.colored(s"-$deleted", Colors.Red)
+  def gitLines(added: Int, deleted: Int): Str =
+    Colors.styled(s"+$added", Colors.Green) ++ Str("/") ++ Colors.styled(s"-$deleted", Colors.Red)
 }
 
 object BarFormatter extends StatusLineFormatter {
-  def format(e: StatusEvent): String = {
+  def format(e: StatusEvent): FormattedOutput = {
     val model = modelName(e.model.display_name)
     val pct = calculateContextPercent(e.context_window)
     val bar = contextBar(pct)
@@ -72,12 +74,15 @@ object BarFormatter extends StatusLineFormatter {
     val lines = linesChanged(e.cost.total_lines_added, e.cost.total_lines_removed)
     val dir = directory(e.workspace.project_dir)
 
-    s"[$model] $bar $percent | $costStr | $lines | $dir $prompt"
+    FormattedOutput(
+      Str("[") ++ model ++ Str("] ") ++ bar ++ Str(" ") ++ percent ++
+        Str(" | ") ++ costStr ++ Str(" | ") ++ lines ++ Str(" | ") ++ dir ++ Str(" ") ++ prompt
+    )
   }
 }
 
 object CompactFormatter extends StatusLineFormatter {
-  def format(e: StatusEvent): String = {
+  def format(e: StatusEvent): FormattedOutput = {
     val model = modelName(e.model.display_name)
     val pct = calculateContextPercent(e.context_window)
     val percent = contextPercent(pct)
@@ -85,12 +90,15 @@ object CompactFormatter extends StatusLineFormatter {
     val lines = linesChanged(e.cost.total_lines_added, e.cost.total_lines_removed)
     val dir = directory(e.workspace.project_dir)
 
-    s"$model@$percent $costStr $lines $dir $prompt"
+    FormattedOutput(
+      model ++ Str("@") ++ percent ++ Str(" ") ++ costStr ++ Str(" ") ++
+        lines ++ Str(" ") ++ dir ++ Str(" ") ++ prompt
+    )
   }
 }
 
 object EmojiFormatter extends StatusLineFormatter {
-  def format(e: StatusEvent): String = {
+  def format(e: StatusEvent): FormattedOutput = {
     val model = modelName(e.model.display_name)
     val pct = calculateContextPercent(e.context_window)
     val percent = contextPercent(pct)
@@ -98,44 +106,52 @@ object EmojiFormatter extends StatusLineFormatter {
     val lines = linesChanged(e.cost.total_lines_added, e.cost.total_lines_removed)
     val dir = directory(e.workspace.project_dir)
 
-    s"🤖 $model [$percent] $costStr $lines $dir $prompt"
+    FormattedOutput(
+      Str("🤖 ") ++ model ++ Str(" [") ++ percent ++ Str("] ") ++ costStr ++
+        Str(" ") ++ lines ++ Str(" ") ++ dir ++ Str(" ") ++ prompt
+    )
   }
 }
 
 object GitBarFormatter extends StatusLineFormatter {
-  def format(e: StatusEvent): String = {
+  def format(e: StatusEvent): FormattedOutput = {
     val model = modelName(e.model.display_name)
     val pct = calculateContextPercent(e.context_window)
     val bar = contextBar(pct)
     val percent = contextPercent(pct)
     val costStr = cost(e.cost.total_cost_usd)
 
-    val gitPart = GitHelper.getGitInfo(e.workspace.project_dir) match {
+    val gitPart: Str = GitHelper.getGitInfo(e.workspace.project_dir) match {
       case Some(git) =>
-        val branch = branchName(git.branch) + dirtyMarker(git.isDirty)
+        val branch = branchName(git.branch) ++ dirtyMarker(git.isDirty)
         val ab = aheadBehind(git.ahead, git.behind)
         val lines = gitLines(git.linesAdded, git.linesDeleted)
-        s" | $branch$ab | $lines"
-      case None => ""
+        Str(" | ") ++ branch ++ ab ++ Str(" | ") ++ lines
+      case None => Str("")
     }
 
-    s"[$model] $bar $percent | $costStr$gitPart $prompt"
+    FormattedOutput(
+      Str("[") ++ model ++ Str("] ") ++ bar ++ Str(" ") ++ percent ++
+        Str(" | ") ++ costStr ++ gitPart ++ Str(" ") ++ prompt
+    )
   }
 }
 
 object GitCompactFormatter extends StatusLineFormatter {
-  def format(e: StatusEvent): String = {
+  def format(e: StatusEvent): FormattedOutput = {
     val model = modelName(e.model.display_name)
     val pct = calculateContextPercent(e.context_window)
     val percent = contextPercent(pct)
 
-    val gitPart = GitHelper.getGitInfo(e.workspace.project_dir) match {
+    val gitPart: Str = GitHelper.getGitInfo(e.workspace.project_dir) match {
       case Some(git) =>
-        val branch = branchName(git.branch) + dirtyMarker(git.isDirty)
-        s" $branch"
-      case None => ""
+        val branch = branchName(git.branch) ++ dirtyMarker(git.isDirty)
+        Str(" ") ++ branch
+      case None => Str("")
     }
 
-    s"$model@$percent$gitPart $prompt"
+    FormattedOutput(
+      model ++ Str("@") ++ percent ++ gitPart ++ Str(" ") ++ prompt
+    )
   }
 }

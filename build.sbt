@@ -1,6 +1,7 @@
 val scala3Version = "3.7.3"
 val circeVersion = "0.14.10"
 val ironVersion = "3.2.3"
+val fansiVersion = "0.5.0"
 
 lazy val root = project
   .in(file("."))
@@ -15,7 +16,8 @@ lazy val root = project
       "io.circe" %% "circe-parser" % circeVersion,
       "io.github.iltotore" %% "iron" % ironVersion,
       "io.github.iltotore" %% "iron-circe" % ironVersion,
-      "org.eclipse.jgit" % "org.eclipse.jgit" % "7.5.0.202512021534-r"
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "7.5.0.202512021534-r",
+      "com.lihaoyi" %% "fansi" % fansiVersion
     ),
     bashScriptExtraDefines += """addJava "--add-opens=java.base/sun.misc=ALL-UNNAMED"""",
     bashScriptExtraDefines += """addJava "--add-opens=java.base/java.lang=ALL-UNNAMED"""",
