@@ -1,58 +1,28 @@
 package statusline
 
-import fansi.{Attr, Bold => FBold, Color => FColor, Str}
-
-/** ANSI color utilities using the fansi library.
+/** ANSI color utilities built on the AnsiStr AST.
   *
-  * Provides both fansi.Attr-based styling (recommended) and legacy
-  * String-based escape codes for backwards compatibility.
+  * Provides Style values and a `styled` constructor that
+  * produces AnsiStr nodes — no raw escape codes, no fansi.
   */
-object Colors {
-  // fansi attributes for rich styling
-  val Reset: Attr = fansi.Attr.Reset
-  val Bold: Attr = FBold.On
-  val Dim: Attr = FColor.True(128, 128, 128) // fansi doesn't have Dim, approximate with gray
+object Colors:
 
-  val Red: Attr = FColor.Red
-  val Green: Attr = FColor.Green
-  val Yellow: Attr = FColor.Yellow
-  val Blue: Attr = FColor.Blue
-  val Cyan: Attr = FColor.Cyan
-  val White: Attr = FColor.White
+  // ── Named style shortcuts ─────────────────────────────────────────
 
-  /** Apply fansi styling to create a styled Str */
-  def styled(s: String, attrs: Attr*): Str =
-    attrs.foldLeft(Str(s))((str, attr) => attr(str))
+  val Bold: Style = Style.bold
+  val Dim: Style = Style.dim
 
-  /** Apply fansi styling and wrap in FormattedOutput */
-  def formatted(s: String, attrs: Attr*): FormattedOutput =
-    FormattedOutput(styled(s, attrs*))
+  val Red: Style = Style.fg(Color.Named(NamedColor.Red))
+  val Green: Style = Style.fg(Color.Named(NamedColor.Green))
+  val Yellow: Style = Style.fg(Color.Named(NamedColor.Yellow))
+  val Blue: Style = Style.fg(Color.Named(NamedColor.Blue))
+  val Cyan: Style = Style.fg(Color.Named(NamedColor.Cyan))
+  val White: Style = Style.fg(Color.Named(NamedColor.White))
 
-  // Legacy String-based escape codes for backwards compatibility
-  private val EscReset = "\u001b[0m"
-  private val EscBold = "\u001b[1m"
-  private val EscDim = "\u001b[2m"
-  private val EscRed = "\u001b[31m"
-  private val EscGreen = "\u001b[32m"
-  private val EscYellow = "\u001b[33m"
-  private val EscBlue = "\u001b[34m"
-  private val EscCyan = "\u001b[36m"
-  private val EscWhite = "\u001b[37m"
-
-  /** Legacy: Apply raw ANSI escape codes (returns String) */
-  def colored(s: String, codes: String*): String =
-    codes.mkString + s + EscReset
-
-  /** Map legacy escape codes to fansi attrs for migration */
-  def escapeToAttr(code: String): Attr = code match {
-    case `EscBold`   => Bold
-    case `EscDim`    => Dim
-    case `EscRed`    => Red
-    case `EscGreen`  => Green
-    case `EscYellow` => Yellow
-    case `EscBlue`   => Blue
-    case `EscCyan`   => Cyan
-    case `EscWhite`  => White
-    case _           => Reset
-  }
-}
+  /** Create a styled AnsiStr node from text and one or more styles.
+    *
+    * Styles are merged left-to-right, so later styles override earlier ones.
+    */
+  def styled(s: String, styles: Style*): AnsiStr =
+    val merged = styles.foldLeft(Style.Empty)(_ ++ _)
+    AnsiStr.styled(s, merged)

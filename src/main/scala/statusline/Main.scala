@@ -18,7 +18,7 @@ object Main {
     decode[StatusEvent](json) match {
       case Right(event) =>
         val output = formatter.format(event)
-        // Use .render to get ANSI string, or .styled for the rich fansi.Str
+        // Use .render for ANSI string, .ast for the AnsiStr tree, .plainText for unstyled
         println(output.render)
       case Left(error) =>
         System.err.println(s"Error parsing JSON: ${error.getMessage}")

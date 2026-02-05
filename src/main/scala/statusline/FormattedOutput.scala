@@ -1,51 +1,49 @@
 package statusline
 
-import fansi.Str
-
-/** Wrapper for formatted output that provides access to both the rich fansi.Str
-  * representation and convenience methods for rendering to different formats.
+/** Wrapper for formatted output that provides access to the ANSI AST
+  * and convenience methods for rendering to different formats.
   *
-  * This makes the richer fansi type optional - callers can:
-  *   - Use `.styled` to get the underlying fansi.Str for rich manipulation
+  * Callers can:
+  *   - Use `.ast` to get the underlying AnsiStr tree for inspection/transforms
   *   - Use `.render` to get the ANSI-escaped String for terminal output
   *   - Use `.plainText` to get the unstyled text content
   */
-final case class FormattedOutput(styled: Str) {
+final case class FormattedOutput(ast: AnsiStr) {
 
   /** Render to ANSI-escaped String for terminal display */
-  def render: String = styled.render
+  def render: String = ast.render
 
   /** Get plain text without any ANSI styling */
-  def plainText: String = styled.plainText
+  def plainText: String = ast.plainText
 
   /** Get the length of the visible text (excluding ANSI codes) */
-  def length: Int = styled.length
+  def length: Int = ast.length
 
   /** Concatenate with another FormattedOutput */
   def ++(other: FormattedOutput): FormattedOutput =
-    FormattedOutput(styled ++ other.styled)
+    FormattedOutput(ast ++ other.ast)
 
-  /** Concatenate with a fansi.Str */
-  def ++(other: Str): FormattedOutput =
-    FormattedOutput(styled ++ other)
+  /** Concatenate with an AnsiStr */
+  def ++(other: AnsiStr): FormattedOutput =
+    FormattedOutput(ast ++ other)
 
   override def toString: String = render
 }
 
 object FormattedOutput {
 
-  /** Create from a fansi.Str */
-  def apply(s: Str): FormattedOutput = new FormattedOutput(s)
+  /** Create from an AnsiStr AST */
+  def apply(ast: AnsiStr): FormattedOutput = new FormattedOutput(ast)
 
   /** Create from a plain String (no styling) */
-  def plain(s: String): FormattedOutput = FormattedOutput(Str(s))
+  def plain(s: String): FormattedOutput = FormattedOutput(AnsiStr.Text(s))
 
   /** Create an empty FormattedOutput */
-  val empty: FormattedOutput = FormattedOutput(Str(""))
+  val empty: FormattedOutput = FormattedOutput(AnsiStr.Empty)
 
   /** Concatenate multiple FormattedOutputs */
   def concat(outputs: FormattedOutput*): FormattedOutput =
-    outputs.foldLeft(empty)(_ ++ _)
+    FormattedOutput(AnsiStr.concat(outputs.map(_.ast)*))
 
   /** Implicit conversion to allow seamless use where String is expected */
   given Conversion[FormattedOutput, String] = _.render
